@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Visualization HF Test</title>
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      padding: 2rem;
+    }
+    #loading {
+      display: none;
+    }
+    #error-message {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="mb-4 text-center">Data Visualization HF Test</h1>
+  <div class="container mb-4">
+    <div class="row g-3 align-items-center">
+      <div class="col-md-8">
+        <input type="text" class="form-control" id="dataUrlInput" placeholder="Enter data URL or leave blank for sample data" />
+      </div>
+      <div class="col-md-4">
+        <button class="btn btn-primary w-100" id="loadDataBtn">Load Data</button>
+      </div>
+    </div>
+  </div>
+  <div id="loading" class="alert alert-info text-center mb-4">Loading data, please wait...</div>
+  <div id="error-message" class="alert alert-danger mb-4"></div>
+  <div class="card mb-4">
+    <div class="card-body">
+      <canvas id="chartContainer" height="400"></canvas>
+    </div>
+  </div>
+  <div class="text-center mb-4" id="no-data-message" style="display:none;">
+    <p class="text-muted">No data available to display.</p>
+  </div>
+  <footer class="text-center text-muted">
+    &copy; 2023 Data Visualization HF Test
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const loadBtn = document.getElementById('loadDataBtn');
+      const dataUrlInput = document.getElementById('dataUrlInput');
+      const loadingDiv = document.getElementById('loading');
+      const errorDiv = document.getElementById('error-message');
+      const noDataDiv = document.getElementById('no-data-message');
+      const ctx = document.getElementById('chartContainer').getContext('2d');
+      let chartInstance = null;
+
+      function showLoading(show) {
+        loadingDiv.style.display = show ? 'block' : 'none';
+      }
+
+      function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = message ? 'block' : 'none';
+      }
+
+      function showNoData(show) {
+        noDataDiv.style.display = show ? 'block' : 'none';
+      }
+
+      function clearChart() {
+        if (chartInstance) {
+          chartInstance.destroy();
+          chartInstance = null;
+        }
+      }
+
+      function drawChart(data) {
+        clearChart();
+        if (!data || !data.labels || !data.datasets) {
+          showNoData(true);
+          return;
+        }
+        showNoData(false);
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.labels,
+            datasets: data.datasets.map((ds, index) => ({
+              label: ds.label || `Dataset ${index + 1}`,
+              data: ds.data,
+              fill: false,
+              borderColor: getColor(index),
+              backgroundColor: getColor(index, 0.2),
+              tension: 0.4,
+            }))
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top',
+              },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+              }
+            },
+            interaction: {
+              mode: 'nearest',
+              axis: 'x',
+              intersect: false
+            }
+          }
+        });
+      }
+
+      function getColor(index, alpha=1) {
+        const colors = [
+          'rgba(255, 99, 132, '+alpha+')',
+          'rgba(54, 162, 235, '+alpha+')',
+          'rgba(255, 206, 86, '+alpha+')',
+          'rgba(75, 192, 192, '+alpha+')',
+          'rgba(153, 102, 255, '+alpha+')',
+          'rgba(255, 159, 64, '+alpha+')'
+        ];
+        return colors[index % colors.length];
+      }
+
+      async function fetchData(url) {
+        showError('');
+        showNoData(false);
+        clearChart();
+        showLoading(true);
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          const data = await response.json();
+          showLoading(false);
+          drawChart(data);
+        } catch (err) {
+          showLoading(false);
+          showError(`Failed to load data: ${err.message}`);
+        }
+      }
+
+      // Handle URL params
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('url')) {
+        const urlParam = params.get('url');
+        dataUrlInput.value = urlParam;
+        fetchData(urlParam);
+      }
+
+      loadBtn.addEventListener('click', () => {
+        const url = dataUrlInput.value.trim();
+        if (url) {
+          fetchData(url);
+        } else {
+          showError('Please enter a data URL.');
+        }
+      });
+
+      // Sample data if no URL provided
+      if (!dataUrlInput.value.trim()) {
+        // Provide a default sample data
+        const sampleData = {
+          labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+          datasets: [
+            {
+              label: 'Sample Data 1',
+              data: [65, 59, 80, 81, 56, 55, 40]
+            },
+            {
+              label: 'Sample Data 2',
+              data: [28, 48, 40, 19, 86, 27, 90]
+            }
+          ]
+        };
+        drawChart(sampleData);
+      }
+    });
+  </script>
+</body>
+</html>
